@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat with Image Support</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f9f9f9;
+        }
+        #chatContainer {
+            width: 80%;
+            max-width: 600px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background: #fff;
+            margin-top: 20px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        #messages {
+            height: 400px;
+            overflow-y: auto;
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+        }
+        #messages div {
+            margin-bottom: 10px;
+            word-wrap: break-word;
+        }
+        #controls {
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+        }
+        #textInput, #fileInput, #sendButton, #sendFileButton {
+            margin-bottom: 10px;
+            padding: 10px;
+            font-size: 1rem;
+        }
+        #sendButton, #sendFileButton {
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 3px;
+        }
+        #sendButton:hover, #sendFileButton:hover {
+            background-color: #0056b3;
+        }
+        img {
+            max-width: 100%;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+<h1>Chat Application with Image Support</h1>
+<div id="chatContainer">
+    <div id="messages"></div>
+    <div id="controls">
+        <input id="textInput" type="text" placeholder="Enter your message" />
+        <button id="sendButton">Send Message</button>
+        <input id="fileInput" type="file" accept="image/*" />
+        <button id="sendFileButton">Send Image</button>
+    </div>
+</div>
+
+<script>
+    // Connect to the WebSocket server
+    const ws = new WebSocket('wss://8f8d-103-159-254-147.ngrok-free.app/chat'); // Update with your server's WebSocket URL
+    const messagesDiv = document.getElementById('messages');
+    const textInput = document.getElementById('textInput');
+    const fileInput = document.getElementById('fileInput');
+    const sendButton = document.getElementById('sendButton');
+    const sendFileButton = document.getElementById('sendFileButton');
+
+    let username = null;
+
+    // Prompt the user for a username
+    while (!username) {
+        username = prompt('Enter your username:');
+    }
+
+    ws.onopen = () => {
+        console.log('WebSocket connection established.');
+        ws.send(username); // Send the username to the server
+    };
+
+    ws.onmessage = (event) => {
+        if (typeof event.data === 'string') {
+            // Handle text messages
+            const newMessage = document.createElement('div');
+            newMessage.textContent = event.data;
+            messagesDiv.appendChild(newMessage);
+        } else {
+            // Handle binary messages (images)
+            const blob = new Blob([event.data], { type: 'image/png' }); // Adjust MIME type if needed
+            const url = URL.createObjectURL(blob);
+            const img = document.createElement('img');
+            img.src = url;
+            messagesDiv.appendChild(img);
+        }
+        messagesDiv.scrollTop = messagesDiv.scrollHeight; // Auto-scroll to the latest message
+    };
+
+    ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+    };
+
+    ws.onclose = () => {
+        console.log('WebSocket connection closed.');
+    };
+
+    // Send text messages
+    sendButton.onclick = () => {
+        const message = textInput.value;
+        if (message) {
+            ws.send(message); // Send text message
+            textInput.value = ''; // Clear input field
+        }
+    };
+
+    // Send image files
+    sendFileButton.onclick = () => {
+        const file = fileInput.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                ws.send(event.target.result); // Send binary data
+            };
+            reader.readAsArrayBuffer(file); // Read file as ArrayBuffer for binary transfer
+        }
+    };
+
+    // Allow pressing "Enter" to send text messages
+    textInput.addEventListener('keypress', (event) => {
+        if (event.key === 'Enter') {
+            sendButton.click();
+        }
+    });
+</script>
+</body>
+</html>
